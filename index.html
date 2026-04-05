@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Journal">
+<title>Journal</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Serif+Display&display=swap');
+
+  :root {
+    --bg: #f7f5f0;
+    --surface: #ffffff;
+    --border: rgba(0,0,0,0.08);
+    --border-md: rgba(0,0,0,0.14);
+    --text: #1a1814;
+    --text-secondary: #7a776e;
+    --text-tertiary: #b0ada6;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --mood-0: #4a9e6b;
+    --mood-1: #7eba5a;
+    --mood-2: #c8c94a;
+    --mood-3: #e8a83a;
+    --mood-4: #e07040;
+    --mood-5: #d04545;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* Lock screen */
+  #lock-screen {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 1000; gap: 24px;
+    padding: 40px;
+  }
+  #lock-screen h1 { font-family: 'DM Serif Display', serif; font-size: 32px; font-weight: 400; }
+  #lock-screen p { font-size: 14px; color: var(--text-secondary); }
+  #lock-input {
+    width: 100%; max-width: 280px;
+    padding: 12px 16px;
+    border: 0.5px solid var(--border-md);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    font-size: 16px;
+    font-family: 'DM Sans', sans-serif;
+    outline: none;
+    text-align: center;
+    letter-spacing: 0.1em;
+  }
+  #lock-input:focus { border-color: rgba(0,0,0,0.3); }
+  #lock-btn {
+    width: 100%; max-width: 280px;
+    padding: 12px;
+    background: var(--text);
+    color: var(--bg);
+    border: none; border-radius: var(--radius-sm);
+    font-size: 14px; font-family: 'DM Sans', sans-serif;
+    font-weight: 500; cursor: pointer;
+  }
+  #lock-error { font-size: 13px; color: var(--mood-5); display: none; }
+  #set-password-hint { font-size: 12px; color: var(--text-tertiary); text-align: center; max-width: 260px; }
+
+  /* App shell */
+  #app { display: none; flex-direction: column; width: 100%; max-width: 430px; min-height: 100vh; }
+
+  /* Header */
+  .app-header {
+    background: var(--surface);
+    padding: 16px 20px 12px;
+    border-bottom: 0.5px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .app-header-left h1 { font-family: 'DM Serif Display', serif; font-size: 22px; font-weight: 400; }
+  .app-header-left p { font-size: 11px; color: var(--text-secondary); margin-top: 1px; }
+  .header-actions { display: flex; gap: 8px; }
+  .icon-btn {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    border: 0.5px solid var(--border-md);
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 15px;
+  }
+  .icon-btn:active { opacity: 0.6; }
+
+  /* Month nav */
+  .month-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 20px;
+    background: var(--surface);
+  }
+  .month-nav span { font-size: 14px; font-weight: 500; }
+  .nav-btn {
+    background: none; border: none; cursor: pointer;
+    color: var(--text-secondary); font-size: 20px;
+    width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+  }
+  .nav-btn:active { background: var(--bg); }
+
+  /* Calendar */
+  .cal-wrap { background: var(--surface); border-bottom: 0.5px solid var(--border); }
+  .day-labels {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    padding: 0 12px;
+  }
+  .day-label { text-align: center; font-size: 10px; color: var(--text-tertiary); padding: 4px 0; font-weight: 500; letter-spacing: 0.04em; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; padding: 4px 12px 12px; }
+  .day-cell {
+    aspect-ratio: 1;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; cursor: pointer;
+    color: var(--text-secondary);
+    position: relative;
+    transition: opacity 0.1s;
+  }
+  .day-cell:active { opacity: 0.6; }
+  .day-cell.other-month { color: var(--text-tertiary); opacity: 0.35; pointer-events: none; }
+  .day-cell.today { font-weight: 500; color: var(--text); }
+  .day-cell.today::after {
+    content: ''; position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%);
+    width: 3px; height: 3px; border-radius: 50%; background: var(--text);
+  }
+  .day-cell.has-mood {
+    color: #fff; font-weight: 500;
+  }
+  .day-cell.has-mood.today::after { background: rgba(255,255,255,0.7); }
+  .day-cell.selected { outline: 2px solid var(--text); outline-offset: 2px; }
+
+  /* Entry area */
+  .entry-area { flex: 1; padding: 12px 16px 40px; display: flex; flex-direction: column; gap: 12px; }
+
+  .entry-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 0.5px solid var(--border);
+    padding: 16px;
+  }
+  .entry-card-title { font-size: 11px; font-weight: 500; color: var(--text-secondary); letter-spacing: 0.05em; margin-bottom: 12px; text-transform: uppercase; }
+
+  /* Mood */
+  .mood-swatches { display: flex; gap: 8px; align-items: center; }
+  .mood-swatch {
+    flex: 1; aspect-ratio: 1; border-radius: 50%; cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 0.15s, border-color 0.15s;
+    max-width: 44px;
+  }
+  .mood-swatch:active { transform: scale(0.92); }
+  .mood-swatch.active { border-color: var(--text); transform: scale(1.12); }
+  .mood-selected-label { font-size: 12px; color: var(--text-secondary); margin-top: 10px; min-height: 16px; }
+
+  /* Weather */
+  .weather-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+  .weather-chip {
+    padding: 6px 12px; border-radius: 20px;
+    border: 0.5px solid var(--border-md);
+    background: var(--bg); color: var(--text-secondary);
+    font-size: 12px; font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+  }
+  .weather-chip.active {
+    background: var(--text); color: var(--bg);
+    border-color: var(--text);
+  }
+  .weather-chip:active { opacity: 0.7; }
+
+  /* Notes */
+  .notes-ta {
+    width: 100%;
+    border: none; outline: none;
+    resize: none;
+    font-size: 14px; line-height: 1.6;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text);
+    background: transparent;
+    min-height: 80px;
+  }
+  .notes-ta::placeholder { color: var(--text-tertiary); }
+
+  /* Photo */
+  .photo-area { display: flex; align-items: center; gap: 12px; }
+  .photo-add-btn {
+    width: 60px; height: 60px; border-radius: var(--radius-sm);
+    border: 0.5px dashed var(--border-md);
+    background: var(--bg); cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px; color: var(--text-tertiary); font-size: 10px;
+  }
+  .photo-add-btn span.plus { font-size: 22px; line-height: 1; color: var(--text-tertiary); }
+  .photo-add-btn:active { opacity: 0.6; }
+  .photo-thumb {
+    width: 60px; height: 60px; border-radius: var(--radius-sm);
+    object-fit: cover; border: 0.5px solid var(--border);
+    cursor: pointer;
+  }
+  .photo-remove {
+    font-size: 12px; color: var(--mood-5); cursor: pointer; margin-left: 4px;
+  }
+  input[type=file] { display: none; }
+
+  /* Save button */
+  .save-btn {
+    width: 100%; padding: 14px;
+    background: var(--text); color: var(--bg);
+    border: none; border-radius: var(--radius-sm);
+    font-size: 14px; font-family: 'DM Sans', sans-serif;
+    font-weight: 500; cursor: pointer; letter-spacing: 0.02em;
+  }
+  .save-btn:active { opacity: 0.8; }
+
+  /* No day selected */
+  .no-day { text-align: center; padding: 40px 20px; color: var(--text-tertiary); font-size: 14px; }
+
+  /* Toast */
+  #toast {
+    position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--text); color: var(--bg);
+    padding: 10px 20px; border-radius: 20px; font-size: 13px;
+    opacity: 0; transition: opacity 0.2s, transform 0.2s; pointer-events: none; z-index: 999;
+    white-space: nowrap;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Modal (export/import/settings) */
+  #modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.3);
+    display: none; align-items: flex-end; justify-content: center; z-index: 500;
+  }
+  #modal-overlay.open { display: flex; }
+  .modal-sheet {
+    background: var(--surface); border-radius: 20px 20px 0 0;
+    padding: 24px 20px 40px; width: 100%; max-width: 430px;
+  }
+  .modal-sheet h2 { font-family: 'DM Serif Display', serif; font-size: 20px; font-weight: 400; margin-bottom: 16px; }
+  .modal-btn {
+    width: 100%; padding: 13px;
+    border: 0.5px solid var(--border-md); border-radius: var(--radius-sm);
+    background: var(--bg); color: var(--text);
+    font-size: 14px; font-family: 'DM Sans', sans-serif;
+    cursor: pointer; margin-bottom: 8px; text-align: left;
+  }
+  .modal-btn:active { opacity: 0.6; }
+  .modal-btn.danger { color: var(--mood-5); border-color: rgba(208,69,69,0.2); }
+  .modal-close { font-size: 13px; color: var(--text-secondary); cursor: pointer; text-align: center; margin-top: 8px; display: block; }
+</style>
+</head>
+<body>
+
+<!-- Lock Screen -->
+<div id="lock-screen">
+  <div style="text-align:center">
+    <h1>Journal</h1>
+    <p style="margin-top:6px">Enter your password to continue</p>
+  </div>
+  <input type="password" id="lock-input" placeholder="Password" autocomplete="current-password" />
+  <div id="lock-error">Incorrect password</div>
+  <button id="lock-btn">Unlock</button>
+  <p id="set-password-hint"></p>
+</div>
+
+<!-- App -->
+<div id="app">
+  <div class="app-header">
+    <div class="app-header-left">
+      <h1>Journal</h1>
+      <p id="today-label"></p>
+    </div>
+    <div class="header-actions">
+      <div class="icon-btn" onclick="openModal()" title="Options">&#8943;</div>
+    </div>
+  </div>
+
+  <div class="cal-wrap">
+    <div class="month-nav">
+      <button class="nav-btn" id="prev-btn">&#8249;</button>
+      <span id="month-title"></span>
+      <button class="nav-btn" id="next-btn">&#8250;</button>
+    </div>
+    <div class="day-labels" id="day-labels"></div>
+    <div class="cal-grid" id="cal-grid"></div>
+  </div>
+
+  <div class="entry-area" id="entry-area">
+    <div class="no-day">Tap a day to log your mood</div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Modal -->
+<div id="modal-overlay" onclick="closeModal()">
+  <div class="modal-sheet" onclick="event.stopPropagation()">
+    <h2>Options</h2>
+    <button class="modal-btn" onclick="exportData()">Export entries to JSON</button>
+    <button class="modal-btn" onclick="document.getElementById('import-input').click()">Import from JSON backup</button>
+    <button class="modal-btn" onclick="changePassword()">Change password</button>
+    <button class="modal-btn danger" onclick="clearAllData()">Clear all data</button>
+    <span class="modal-close" onclick="closeModal()">Close</span>
+    <input type="file" id="import-input" accept=".json" onchange="importData(this)">
+  </div>
+</div>
+
+<script>
+// ── Constants ─────────────────────────────────────────────────────────────────
+const DAYS_SHORT = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MOODS = [
+  {color:'#4a9e6b',label:'Great'},
+  {color:'#7eba5a',label:'Good'},
+  {color:'#c8c94a',label:'Okay'},
+  {color:'#e8a83a',label:'Meh'},
+  {color:'#e07040',label:'Low'},
+  {color:'#d04545',label:'Bad'},
+];
+const WEATHERS = ['Sunny','Cloudy','Rainy','Windy','Cold','Hot','Stormy','Snowy'];
+
+// ── Crypto helpers ────────────────────────────────────────────────────────────
+// cryptoKey lives only in memory — never written to disk
+let cryptoKey = null;
+const enc = new TextEncoder();
+const dec = new TextDecoder();
+
+function buf2b64(buf) {
+  return btoa(String.fromCharCode(...new Uint8Array(buf)));
+}
+function b642buf(b64) {
+  return Uint8Array.from(atob(b64), c => c.charCodeAt(0)).buffer;
+}
+
+async function deriveKey(password, salt) {
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']
+  );
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 310000, hash: 'SHA-256' },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false, ['encrypt', 'decrypt']
+  );
+}
+
+async function encrypt(obj) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, cryptoKey, enc.encode(JSON.stringify(obj)));
+  return { iv: buf2b64(iv), ct: buf2b64(cipher) };
+}
+
+async function decrypt(stored) {
+  try {
+    const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b642buf(stored.iv) }, cryptoKey, b642buf(stored.ct));
+    return JSON.parse(dec.decode(plain));
+  } catch { return null; }
+}
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+const SALT_KEY   = 'jnl_salt';
+const VERIF_KEY  = 'jnl_verif';
+const VERIF_PLAIN = 'journal-v1-ok';
+
+const isFirstRun = !localStorage.getItem(SALT_KEY);
+const hint = document.getElementById('set-password-hint');
+if (isFirstRun) {
+  hint.textContent = 'First time? Whatever you type becomes your password. Write it down — there is no recovery.';
+}
+
+document.getElementById('lock-btn').onclick = unlock;
+document.getElementById('lock-input').addEventListener('keydown', e => { if (e.key === 'Enter') unlock(); });
+
+async function unlock() {
+  const pw = document.getElementById('lock-input').value;
+  if (!pw) return;
+  const lockBtn = document.getElementById('lock-btn');
+  lockBtn.textContent = 'Unlocking…'; lockBtn.disabled = true;
+  try {
+    if (isFirstRun) {
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      localStorage.setItem(SALT_KEY, buf2b64(salt));
+      cryptoKey = await deriveKey(pw, salt);
+      localStorage.setItem(VERIF_KEY, JSON.stringify(await encrypt({ v: VERIF_PLAIN })));
+      startApp();
+    } else {
+      cryptoKey = await deriveKey(pw, b642buf(localStorage.getItem(SALT_KEY)));
+      const result = await decrypt(JSON.parse(localStorage.getItem(VERIF_KEY)));
+      if (result && result.v === VERIF_PLAIN) {
+        startApp();
+      } else {
+        cryptoKey = null;
+        document.getElementById('lock-error').style.display = 'block';
+        document.getElementById('lock-input').value = '';
+        lockBtn.textContent = 'Unlock'; lockBtn.disabled = false;
+      }
+    }
+  } catch { lockBtn.textContent = 'Unlock'; lockBtn.disabled = false; }
+}
+
+function startApp() {
+  document.getElementById('lock-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  initDB().then(() => {
+    renderHeader(); renderCal();
+    const today = new Date();
+    selectDay(keyFor(today), today.getFullYear(), today.getMonth(), today.getDate());
+  });
+}
+
+// ── IndexedDB (stores encrypted blobs only) ───────────────────────────────────
+let db;
+function initDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('journal_db', 1);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('entries'))
+        d.createObjectStore('entries', { keyPath: 'date' });
+    };
+    req.onsuccess = e => { db = e.target.result; resolve(); };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbGetRaw(key) {
+  return new Promise(resolve => {
+    const req = db.transaction('entries','readonly').objectStore('entries').get(key);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror  = () => resolve(null);
+  });
+}
+function dbPutRaw(obj) {
+  return new Promise(resolve => {
+    const tx = db.transaction('entries','readwrite');
+    tx.objectStore('entries').put(obj);
+    tx.oncomplete = resolve;
+  });
+}
+function dbGetAllRaw() {
+  return new Promise(resolve => {
+    const req = db.transaction('entries','readonly').objectStore('entries').getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror  = () => resolve([]);
+  });
+}
+
+// Encrypt on write, decrypt on read
+async function dbGet(key) {
+  const raw = await dbGetRaw(key);
+  if (!raw) return null;
+  const plain = await decrypt({ iv: raw.iv, ct: raw.ct });
+  return plain ? { date: raw.date, ...plain } : null;
+}
+async function dbPut(obj) {
+  const { date, ...payload } = obj;
+  const { iv, ct } = await encrypt(payload);
+  await dbPutRaw({ date, iv, ct });
+}
+async function dbGetAll() {
+  const raws = await dbGetAllRaw();
+  const results = await Promise.all(raws.map(async raw => {
+    const plain = await decrypt({ iv: raw.iv, ct: raw.ct });
+    return plain ? { date: raw.date, ...plain } : null;
+  }));
+  return results.filter(Boolean);
+}
+
+function dbClear() {
+  return new Promise(resolve => {
+    const tx = db.transaction('entries', 'readwrite');
+    tx.objectStore('entries').clear();
+    tx.oncomplete = resolve;
+  });
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let viewYear, viewMonth, selectedKey;
+let draft = { mood: null, weather: [], notes: '', photo: null };
+let calEntries = {}; // key -> {mood}
+
+const pad = n => String(n).padStart(2, '0');
+const keyFor = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+
+function renderHeader() {
+  const today = new Date();
+  document.getElementById('today-label').textContent = today.toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric'});
+}
+
+// ── Calendar ──────────────────────────────────────────────────────────────────
+async function renderCal() {
+  const today = new Date();
+  if (viewYear === undefined) { viewYear = today.getFullYear(); viewMonth = today.getMonth(); }
+
+  document.getElementById('month-title').textContent = `${MONTHS[viewMonth]} ${viewYear}`;
+
+  // Load all entries for this month to show mood dots
+  const allEntries = await dbGetAll();
+  calEntries = {};
+  allEntries.forEach(e => { calEntries[e.date] = e; });
+
+  const labelsEl = document.getElementById('day-labels');
+  labelsEl.innerHTML = DAYS_SHORT.map(d => `<div class="day-label">${d}</div>`).join('');
+
+  const grid = document.getElementById('cal-grid');
+  grid.innerHTML = '';
+
+  const first = new Date(viewYear, viewMonth, 1);
+  const last = new Date(viewYear, viewMonth + 1, 0);
+
+  // Prev month padding
+  for (let i = 0; i < first.getDay(); i++) {
+    const d = new Date(viewYear, viewMonth, -first.getDay() + 1 + i);
+    const cell = document.createElement('div');
+    cell.className = 'day-cell other-month';
+    cell.textContent = d.getDate();
+    grid.appendChild(cell);
+  }
+
+  // Current month days
+  for (let d = 1; d <= last.getDate(); d++) {
+    const date = new Date(viewYear, viewMonth, d);
+    const key = keyFor(date);
+    const entry = calEntries[key];
+    const isToday = date.toDateString() === today.toDateString();
+    const isSelected = key === selectedKey;
+
+    const cell = document.createElement('div');
+    let cls = 'day-cell';
+    if (isToday) cls += ' today';
+    if (isSelected) cls += ' selected';
+    if (entry && entry.mood !== null && entry.mood !== undefined) {
+      cls += ' has-mood';
+      cell.style.background = MOODS[entry.mood].color;
+    }
+    cell.className = cls;
+    cell.textContent = d;
+    cell.onclick = () => selectDay(key, viewYear, viewMonth, d);
+    grid.appendChild(cell);
+  }
+
+  // Next month padding
+  const total = first.getDay() + last.getDate();
+  const rem = total % 7 === 0 ? 0 : 7 - (total % 7);
+  for (let i = 1; i <= rem; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'day-cell other-month';
+    cell.textContent = i;
+    grid.appendChild(cell);
+  }
+}
+
+document.getElementById('prev-btn').onclick = () => {
+  viewMonth--; if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+  renderCal();
+};
+document.getElementById('next-btn').onclick = () => {
+  viewMonth++; if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+  renderCal();
+};
+
+// ── Entry Panel ───────────────────────────────────────────────────────────────
+async function selectDay(key, year, month, day) {
+  selectedKey = key;
+  viewYear = year; viewMonth = month;
+
+  const entry = await dbGet(key);
+  draft = {
+    mood: entry?.mood ?? null,
+    weather: entry?.weather ?? [],
+    notes: entry?.notes ?? '',
+    photo: entry?.photo ?? null,
+  };
+  renderCal();
+  renderEntry(key, day, month, year);
+}
+
+function renderEntry(key, day, month, year) {
+  const date = new Date(year, month, day);
+  const label = date.toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric'});
+  const area = document.getElementById('entry-area');
+
+  area.innerHTML = `
+    <div class="entry-card">
+      <div class="entry-card-title">Mood</div>
+      <div class="mood-swatches">
+        ${MOODS.map((m,i) => `<div class="mood-swatch${draft.mood===i?' active':''}" style="background:${m.color}" onclick="setMood(${i})"></div>`).join('')}
+      </div>
+      <div class="mood-selected-label" id="mood-label">${draft.mood !== null ? MOODS[draft.mood].label : ''}</div>
+    </div>
+
+    <div class="entry-card">
+      <div class="entry-card-title">Weather</div>
+      <div class="weather-grid">
+        ${WEATHERS.map(w => `<div class="weather-chip${draft.weather.includes(w)?' active':''}" onclick="setWeather('${w}')">${w}</div>`).join('')}
+      </div>
+    </div>
+
+    <div class="entry-card">
+      <div class="entry-card-title">Notes</div>
+      <textarea class="notes-ta" id="notes-ta" placeholder="How was your day?" rows="4">${draft.notes}</textarea>
+    </div>
+
+    <div class="entry-card">
+      <div class="entry-card-title">Photo</div>
+      <div class="photo-area" id="photo-area">
+        ${renderPhotoArea()}
+      </div>
+      <input type="file" id="photo-input" accept="image/*" onchange="handlePhoto(this)">
+    </div>
+
+    <button class="save-btn" onclick="saveEntry()">Save entry</button>
+  `;
+
+  document.getElementById('notes-ta').oninput = function() { draft.notes = this.value; };
+}
+
+function renderPhotoArea() {
+  if (draft.photo) {
+    return `<img class="photo-thumb" src="${draft.photo}" onclick="document.getElementById('photo-input').click()" />
+            <span class="photo-remove" onclick="removePhoto()">Remove</span>`;
+  }
+  return `<div class="photo-add-btn" onclick="document.getElementById('photo-input').click()">
+    <span class="plus">+</span>
+    <span>Add photo</span>
+  </div>`;
+}
+
+function setMood(i) {
+  draft.mood = i;
+  document.querySelectorAll('.mood-swatch').forEach((s,idx) => s.classList.toggle('active', idx===i));
+  const lbl = document.getElementById('mood-label');
+  if (lbl) lbl.textContent = MOODS[i].label;
+}
+
+function setWeather(w) {
+  if (!Array.isArray(draft.weather)) draft.weather = [];
+  const idx = draft.weather.indexOf(w);
+  if (idx === -1) draft.weather.push(w);
+  else draft.weather.splice(idx, 1);
+  document.querySelectorAll('.weather-chip').forEach(c => {
+    c.classList.toggle('active', draft.weather.includes(c.textContent));
+  });
+}
+
+function handlePhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  // Resize to max 1200px wide to keep storage reasonable
+  const img = new Image();
+  const url = URL.createObjectURL(file);
+  img.onload = () => {
+    const MAX = 1200;
+    let w = img.width, h = img.height;
+    if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+    draft.photo = canvas.toDataURL('image/jpeg', 0.82);
+    URL.revokeObjectURL(url);
+    const area = document.getElementById('photo-area');
+    if (area) area.innerHTML = renderPhotoArea();
+  };
+  img.src = url;
+}
+
+function removePhoto() {
+  draft.photo = null;
+  const area = document.getElementById('photo-area');
+  if (area) area.innerHTML = renderPhotoArea();
+}
+
+async function saveEntry() {
+  if (!selectedKey) return;
+  await dbPut({ date: selectedKey, mood: draft.mood, weather: draft.weather, notes: draft.notes, photo: draft.photo });
+  renderCal();
+  showToast('Entry saved');
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+function openModal() { document.getElementById('modal-overlay').classList.add('open'); }
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+
+// ── Export ────────────────────────────────────────────────────────────────────
+async function exportData() {
+  closeModal();
+  const entries = await dbGetAll();
+  const blob = new Blob([JSON.stringify({ version: 1, exported: new Date().toISOString(), entries }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `journal-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('Backup downloaded');
+}
+
+// ── Import ────────────────────────────────────────────────────────────────────
+function importData(input) {
+  closeModal();
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      const entries = data.entries || [];
+      for (const entry of entries) { await dbPut(entry); }
+      renderCal();
+      showToast(`Imported ${entries.length} entries`);
+    } catch {
+      showToast('Import failed — invalid file');
+    }
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+// ── Change password (re-encrypts all data with new key) ───────────────────────
+async function changePassword() {
+  closeModal();
+  const np = prompt('Enter new password:');
+  if (!np) return;
+  showToast('Re-encrypting…');
+  const entries = await dbGetAll(); // decrypt with old key
+  const newSalt = crypto.getRandomValues(new Uint8Array(16));
+  cryptoKey = await deriveKey(np, newSalt);
+  localStorage.setItem(SALT_KEY, buf2b64(newSalt));
+  localStorage.setItem(VERIF_KEY, JSON.stringify(await encrypt({ v: VERIF_PLAIN })));
+  await dbClear();
+  for (const entry of entries) { await dbPut(entry); } // re-encrypt with new key
+  showToast('Password updated');
+}
+
+// ── Clear data ────────────────────────────────────────────────────────────────
+async function clearAllData() {
+  closeModal();
+  if (!confirm('Delete all journal entries? This cannot be undone.')) return;
+  await dbClear();
+  calEntries = {};
+  selectedKey = null;
+  renderCal();
+  document.getElementById('entry-area').innerHTML = '<div class="no-day">Tap a day to log your mood</div>';
+  showToast('All data cleared');
+}
+</script>
+</body>
+</html>

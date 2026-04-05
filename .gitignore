@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Vite build output
+dist/
+
+# Local env files
+.env
+.env.local
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Editor configs
+.vscode/
+.idea/
