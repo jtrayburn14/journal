@@ -1,0 +1,3 @@
+<!-- simple journalling app -->
+
+# journal
