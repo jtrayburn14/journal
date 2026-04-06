@@ -686,10 +686,15 @@ function removePhoto() {
 }
 
 async function saveEntry() {
-  if (!selectedKey) return;
-  await dbPut({ date: selectedKey, mood: draft.mood, weather: draft.weather, notes: draft.notes, photo: draft.photo });
-  renderCal();
-  showToast('Entry saved');
+  try {
+    if (!selectedKey) return;
+    await dbPut({ date: selectedKey, mood: draft.mood, weather: draft.weather, notes: draft.notes, photo: draft.photo });
+    renderCal();
+    showToast('Entry saved');
+  } catch (err) {
+    console.error('Save failed:', err);
+    showToast('Save failed — check console');
+  }
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
